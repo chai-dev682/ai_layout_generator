@@ -2,7 +2,7 @@
 Data models for deed parsing system following the canonical JSON schema.
 """
 from typing import List, Optional, Literal, Union
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator, computed_field
 import math
 from enum import Enum
 
@@ -37,6 +37,8 @@ class BearingConvention(str, Enum):
 
 class SurveyCall(BaseModel):
     """Individual survey call (line or curve) following canonical schema"""
+    model_config = {"extra": "allow", "validate_assignment": False}
+    
     sequence: int = Field(..., description="Order in the boundary description")
     type: CallType = Field(..., description="Type of survey call")
     raw_text: str = Field(..., description="Original text from deed")
@@ -45,7 +47,7 @@ class SurveyCall(BaseModel):
     bearing: Optional[str] = Field(None, description="Bearing as text (e.g., 'N 45°30' E')")
     azimuth_deg: Optional[float] = Field(None, description="Azimuth in decimal degrees (0-360)")
     distance: Optional[float] = Field(None, description="Distance value")
-    distance_unit: Optional[DistanceUnit] = Field(None, description="Distance unit")
+    distance_unit: Optional[str] = Field(None, description="Distance unit")
     
     # Curve fields
     curve_direction: Optional[CurveDirection] = Field(None, description="Curve direction L/R")
@@ -59,21 +61,25 @@ class SurveyCall(BaseModel):
     source: str = Field(default="llm", description="Extraction source: llm, regex, manual")
     notes: Optional[str] = Field(None, description="Additional notes or warnings")
     
-    @validator('azimuth_deg')
+    @field_validator('azimuth_deg')
+    @classmethod
     def validate_azimuth(cls, v):
         if v is not None and not (0 <= v <= 360):
             raise ValueError('Azimuth must be between 0 and 360 degrees')
         return v
     
-    @validator('confidence')
+    @field_validator('confidence')
+    @classmethod
     def validate_confidence(cls, v):
         return max(0.0, min(1.0, v))
 
 
 class ProjectSettings(BaseModel):
     """Project-level settings and conventions"""
-    units: DistanceUnit = Field(default=DistanceUnit.FEET, description="Primary distance unit")
-    bearing_convention: BearingConvention = Field(default=BearingConvention.QUADRANT)
+    model_config = {"extra": "allow", "validate_assignment": False}
+    
+    units: str = Field(default="ft", description="Primary distance unit")
+    bearing_convention: str = Field(default="quadrant", description="Bearing convention")
     
     # Point of Beginning
     pob_x: float = Field(default=0.0, description="POB X coordinate")
@@ -110,6 +116,8 @@ class PolygonGeometry(BaseModel):
 
 class Tract(BaseModel):
     """Individual tract within a deed"""
+    model_config = {"extra": "allow", "validate_assignment": False}
+    
     tract_id: str = Field(..., description="Tract identifier (e.g., 'TRACT 1', 'PARCEL A')")
     description: str = Field(..., description="Tract description from deed")
     pob_x: float = Field(default=0.0, description="Point of Beginning X coordinate")
@@ -129,6 +137,8 @@ class Tract(BaseModel):
 
 class DeedParseResult(BaseModel):
     """Complete result from deed parsing - supports multiple tracts"""
+    model_config = {"extra": "allow", "validate_assignment": False}
+    
     tracts: List[Tract] = Field(default_factory=list, description="Individual tracts")
     settings: ProjectSettings = Field(..., description="Project settings used")
     
@@ -139,15 +149,14 @@ class DeedParseResult(BaseModel):
     # Metadata
     original_text: str = Field(..., description="Original deed text")
     parse_timestamp: Optional[str] = Field(None, description="When parsing was performed")
-    total_confidence: float = Field(default=0.0, description="Average confidence across all tracts")
-    
-    @validator('total_confidence', always=True)
-    def calculate_total_confidence(cls, v, values):
-        tracts = values.get('tracts', [])
-        if not tracts:
+    @computed_field
+    @property
+    def total_confidence(self) -> float:
+        """Average confidence across all tracts"""
+        if not self.tracts:
             return 0.0
         all_calls = []
-        for tract in tracts:
+        for tract in self.tracts:
             all_calls.extend(tract.calls)
         if not all_calls:
             return 0.0

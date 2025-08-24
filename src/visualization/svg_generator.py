@@ -66,8 +66,9 @@ class SVGGenerator:
             'xmlns': 'http://www.w3.org/2000/svg'
         })
         
-        # Add styles
+        # Add styles and interactive features
         self._add_styles(svg)
+        self._add_interactive_controls(svg)
         
         # Add title
         title_elem = SubElement(svg, 'title')
@@ -104,6 +105,12 @@ class SVGGenerator:
         
         if self.show_info_box:
             self._draw_multi_tract_info_box(svg, tracts)
+        
+        # Draw POB information for each tract
+        self._draw_tract_pobs(svg, tracts, transform)
+        
+        # Draw boundary coordinates for all tracts
+        self._draw_multi_tract_boundary_coordinates(svg, tracts, transform)
         
         # Convert to string
         rough_string = tostring(svg, 'unicode')
@@ -157,9 +164,93 @@ class SVGGenerator:
                 else:
                     title.text = f"{tract.tract_id} - Vertex {i}\n({vertex.x:.2f}, {vertex.y:.2f})"
         
+        # Draw actual survey calls for this tract
+        self._draw_tract_survey_calls(svg, vertices, calls, transform, color, tract.tract_id)
+        
         # Draw measurements with tract-specific styling
         if self.show_measurements or self.show_bearings:
             self._draw_tract_measurements(svg, vertices, calls, transform, color, tract.tract_id)
+    
+    def _draw_tract_survey_calls(self, svg: Element, vertices: List, calls: List, 
+                               transform: dict, color: str, tract_id: str) -> None:
+        """Draw actual survey calls (boundary lines/curves) for a specific tract"""
+        if len(vertices) < 2:
+            return
+        
+        for i, call in enumerate(calls):
+            if i >= len(vertices) - 1:
+                break
+            
+            # Get start and end points for this survey call
+            start_vertex = vertices[i]
+            end_vertex = vertices[i + 1]
+            
+            start_x, start_y = self._transform_point(start_vertex.x, start_vertex.y, transform)
+            end_x, end_y = self._transform_point(end_vertex.x, end_vertex.y, transform)
+            
+            if call.type in ['curve', 'tie_curve']:
+                # Draw curve boundary for this tract
+                self._draw_tract_curve_boundary(svg, start_x, start_y, end_x, end_y, call, color, tract_id)
+            else:
+                # Draw line boundary for this tract
+                self._draw_tract_line_boundary(svg, start_x, start_y, end_x, end_y, call, color, tract_id)
+    
+    def _draw_tract_line_boundary(self, svg: Element, start_x: float, start_y: float, 
+                                 end_x: float, end_y: float, call: SurveyCall, color: str, tract_id: str) -> None:
+        """Draw a straight line boundary for a specific tract"""
+        SubElement(svg, 'line', {
+            'x1': f'{start_x:.2f}',
+            'y1': f'{start_y:.2f}',
+            'x2': f'{end_x:.2f}',
+            'y2': f'{end_y:.2f}',
+            'stroke': color,
+            'stroke-width': '2',
+            'data-tract-id': tract_id,
+            'data-call-sequence': str(call.sequence),
+            'data-call-type': call.type
+        })
+    
+    def _draw_tract_curve_boundary(self, svg: Element, start_x: float, start_y: float, 
+                                  end_x: float, end_y: float, call: SurveyCall, color: str, tract_id: str) -> None:
+        """Draw a curved boundary for a specific tract"""
+        if not call.radius or not call.chord_length:
+            # Fallback to straight line
+            self._draw_tract_line_boundary(svg, start_x, start_y, end_x, end_y, call, color, tract_id)
+            return
+        
+        # Calculate curve parameters
+        mid_x = (start_x + end_x) / 2
+        mid_y = (start_y + end_y) / 2
+        
+        dx = end_x - start_x
+        dy = end_y - start_y
+        chord_length = math.sqrt(dx**2 + dy**2)
+        
+        if chord_length > 0 and call.radius > chord_length / 2:
+            # Calculate curve control point
+            perp_x = -dy / chord_length
+            perp_y = dx / chord_length
+            
+            curve_height = call.radius - math.sqrt(call.radius**2 - (chord_length/2)**2)
+            direction = 1 if call.curve_direction == "R" else -1
+            
+            control_x = mid_x + perp_x * curve_height * direction
+            control_y = mid_y + perp_y * curve_height * direction
+            
+            # Draw quadratic curve
+            path_data = f'M {start_x:.2f} {start_y:.2f} Q {control_x:.2f} {control_y:.2f} {end_x:.2f} {end_y:.2f}'
+            SubElement(svg, 'path', {
+                'd': path_data,
+                'fill': 'none',
+                'stroke': color,
+                'stroke-width': '2',
+                'data-tract-id': tract_id,
+                'data-call-sequence': str(call.sequence),
+                'data-call-type': call.type
+            })
+        else:
+            # Invalid curve, draw as line
+            self._draw_tract_line_boundary(svg, start_x, start_y, end_x, end_y, call, color, tract_id)
     
     def _draw_tract_measurements(self, svg: Element, vertices: List, calls: List, 
                                transform: dict, color: str, tract_id: str) -> None:
@@ -275,6 +366,395 @@ class SVGGenerator:
             
             y_offset += 50
     
+    def _add_interactive_controls(self, svg: Element) -> None:
+        """Add interactive zoom and pan controls to SVG"""
+        # Add JavaScript for zoom and pan functionality
+        script = SubElement(svg, 'script')
+        script.text = '''
+        let currentZoom = 1;
+        let currentPanX = 0;
+        let currentPanY = 0;
+        let isDragging = false;
+        let lastMouseX = 0;
+        let lastMouseY = 0;
+        
+        function initializeInteractivity() {
+            const svg = document.querySelector('svg');
+            const mainGroup = document.getElementById('main-group');
+            
+            if (!mainGroup) {
+                // Create main group if it doesn't exist
+                const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                g.setAttribute('id', 'main-group');
+                
+                // Move all children except script to the group
+                const children = Array.from(svg.children);
+                children.forEach(child => {
+                    if (child.tagName !== 'script' && child.tagName !== 'style') {
+                        g.appendChild(child);
+                    }
+                });
+                svg.appendChild(g);
+            }
+            
+            // Zoom functionality
+            svg.addEventListener('wheel', function(e) {
+                e.preventDefault();
+                const delta = e.deltaY > 0 ? 0.9 : 1.1;
+                currentZoom *= delta;
+                currentZoom = Math.max(0.1, Math.min(10, currentZoom));
+                updateTransform();
+            });
+            
+            // Pan functionality
+            svg.addEventListener('mousedown', function(e) {
+                isDragging = true;
+                lastMouseX = e.clientX;
+                lastMouseY = e.clientY;
+                svg.style.cursor = 'grabbing';
+            });
+            
+            svg.addEventListener('mousemove', function(e) {
+                if (isDragging) {
+                    const deltaX = e.clientX - lastMouseX;
+                    const deltaY = e.clientY - lastMouseY;
+                    currentPanX += deltaX / currentZoom;
+                    currentPanY += deltaY / currentZoom;
+                    lastMouseX = e.clientX;
+                    lastMouseY = e.clientY;
+                    updateTransform();
+                }
+            });
+            
+            svg.addEventListener('mouseup', function() {
+                isDragging = false;
+                svg.style.cursor = 'grab';
+            });
+            
+            svg.addEventListener('mouseleave', function() {
+                isDragging = false;
+                svg.style.cursor = 'default';
+            });
+            
+            function updateTransform() {
+                const mainGroup = document.getElementById('main-group');
+                if (mainGroup) {
+                    const transform = `translate(${currentPanX}, ${currentPanY}) scale(${currentZoom})`;
+                    mainGroup.setAttribute('transform', transform);
+                }
+            }
+            
+            svg.style.cursor = 'grab';
+        }
+        
+        function resetView() {
+            currentZoom = 1;
+            currentPanX = 0;
+            currentPanY = 0;
+            const mainGroup = document.getElementById('main-group');
+            if (mainGroup) {
+                mainGroup.setAttribute('transform', 'translate(0, 0) scale(1)');
+            }
+        }
+        
+        // Initialize when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initializeInteractivity);
+        } else {
+            initializeInteractivity();
+        }
+        '''
+    
+    def _draw_tract_pobs(self, svg: Element, tracts: List, transform: dict) -> None:
+        """Draw POB information for each tract"""
+        pob_info_y = self.height - 150
+        
+        # Background for POB info
+        SubElement(svg, 'rect', {
+            'x': '10',
+            'y': str(pob_info_y),
+            'width': '320',
+            'height': str(len(tracts) * 30 + 25),
+            'class': 'info-box'
+        })
+        
+        # Title
+        SubElement(svg, 'text', {
+            'x': '20',
+            'y': str(pob_info_y + 18),
+            'class': 'title',
+            'font-size': '14px'
+        }).text = 'Points of Beginning (POB)'
+        
+        # POB details for each tract
+        for i, tract in enumerate(tracts):
+            y_pos = pob_info_y + 40 + (i * 30)
+            
+            # Tract color indicator
+            colors = ['#2E86AB', '#A23B72', '#F18F01', '#7B68EE', '#32CD32', '#FF6347']
+            color = colors[i % len(colors)]
+            
+            SubElement(svg, 'rect', {
+                'x': '20',
+                'y': str(y_pos - 10),
+                'width': '10',
+                'height': '10',
+                'fill': color
+            })
+            
+            # POB coordinates and description
+            pob_text = f"{tract.tract_id}: ({tract.pob_x:.2f}, {tract.pob_y:.2f})"
+            SubElement(svg, 'text', {
+                'x': '35',
+                'y': str(y_pos),
+                'class': 'info',
+                'font-size': '11px',
+                'font-weight': 'bold'
+            }).text = pob_text
+            
+            # POB description (truncated)
+            desc_text = tract.pob_description[:40] + "..." if len(tract.pob_description) > 40 else tract.pob_description
+            SubElement(svg, 'text', {
+                'x': '35',
+                'y': str(y_pos + 12),
+                'class': 'info',
+                'font-size': '9px',
+                'fill': '#666666'
+            }).text = desc_text
+            
+            # Add POB marker on the actual plot
+            pob_svg_x, pob_svg_y = self._transform_point(tract.pob_x, tract.pob_y, transform)
+            
+            # POB marker circle (larger and more prominent)
+            SubElement(svg, 'circle', {
+                'cx': str(pob_svg_x),
+                'cy': str(pob_svg_y),
+                'r': '8',
+                'fill': color,
+                'stroke': 'white',
+                'stroke-width': '3',
+                'class': 'pob-marker'
+            })
+            
+            # POB label with background
+            label_bg = SubElement(svg, 'rect', {
+                'x': str(pob_svg_x + 12),
+                'y': str(pob_svg_y - 15),
+                'width': f'{len(tract.tract_id) * 6 + 10}',
+                'height': '16',
+                'fill': 'white',
+                'stroke': color,
+                'stroke-width': '1',
+                'rx': '3'
+            })
+            
+            SubElement(svg, 'text', {
+                'x': str(pob_svg_x + 17),
+                'y': str(pob_svg_y - 5),
+                'class': 'pob-label',
+                'font-size': '10px',
+                'font-weight': 'bold',
+                'fill': color
+            }).text = f"POB-{tract.tract_id}"
+    
+    def _draw_single_tract_pob(self, svg: Element, geometry: PolygonGeometry, transform: dict) -> None:
+        """Draw POB information for single tract"""
+        if not geometry.vertices:
+            return
+        
+        # Get POB (first vertex)
+        pob_vertex = geometry.vertices[0]
+        pob_svg_x, pob_svg_y = self._transform_point(pob_vertex.x, pob_vertex.y, transform)
+        
+        # POB info box
+        pob_info_y = self.height - 80
+        SubElement(svg, 'rect', {
+            'x': '10',
+            'y': str(pob_info_y),
+            'width': '280',
+            'height': '60',
+            'class': 'info-box'
+        })
+        
+        # POB title
+        SubElement(svg, 'text', {
+            'x': '20',
+            'y': str(pob_info_y + 18),
+            'class': 'title',
+            'font-size': '14px'
+        }).text = 'Point of Beginning (POB)'
+        
+        # POB coordinates
+        SubElement(svg, 'text', {
+            'x': '20',
+            'y': str(pob_info_y + 35),
+            'class': 'info',
+            'font-size': '12px',
+            'font-weight': 'bold'
+        }).text = f"Coordinates: ({pob_vertex.x:.2f}, {pob_vertex.y:.2f})"
+        
+        # POB description
+        SubElement(svg, 'text', {
+            'x': '20',
+            'y': str(pob_info_y + 50),
+            'class': 'info',
+            'font-size': '10px',
+            'fill': '#666666'
+        }).text = pob_vertex.description or "Point of Beginning"
+        
+        # Enhanced POB marker
+        SubElement(svg, 'circle', {
+            'cx': str(pob_svg_x),
+            'cy': str(pob_svg_y),
+            'r': '10',
+            'fill': '#F18F01',
+            'stroke': 'white',
+            'stroke-width': '4',
+            'class': 'pob-marker-single'
+        })
+        
+        # POB label with background
+        SubElement(svg, 'rect', {
+            'x': str(pob_svg_x + 15),
+            'y': str(pob_svg_y - 18),
+            'width': '35',
+            'height': '18',
+            'fill': 'white',
+            'stroke': '#F18F01',
+            'stroke-width': '2',
+            'rx': '4'
+        })
+        
+        SubElement(svg, 'text', {
+            'x': str(pob_svg_x + 20),
+            'y': str(pob_svg_y - 6),
+            'class': 'pob-label',
+            'font-size': '11px',
+            'font-weight': 'bold',
+            'fill': '#F18F01'
+        }).text = 'POB'
+    
+    def _draw_boundary_coordinates(self, svg: Element, geometry: PolygonGeometry, transform: dict) -> None:
+        """Draw coordinate labels for each boundary point in single tract view"""
+        if not geometry or not geometry.vertices:
+            return
+        
+        for i, vertex in enumerate(geometry.vertices):
+            svg_x, svg_y = self._transform_point(vertex.x, vertex.y, transform)
+            
+            # Skip POB as it's already labeled
+            if i == 0:
+                continue
+            
+            # Small circle marker for boundary point
+            SubElement(svg, 'circle', {
+                'cx': str(svg_x),
+                'cy': str(svg_y),
+                'r': '3',
+                'fill': '#007bff',
+                'stroke': 'white',
+                'stroke-width': '1',
+                'class': 'boundary-point'
+            })
+            
+            # Coordinate label background
+            coord_text = f"({vertex.x:.1f}, {vertex.y:.1f})"
+            text_width = len(coord_text) * 6 + 8
+            
+            # Position label to avoid overlap
+            label_x = svg_x + 8
+            label_y = svg_y - 8
+            
+            # Adjust if near edges
+            if label_x + text_width > self.width - 10:
+                label_x = svg_x - text_width - 8
+            if label_y < 20:
+                label_y = svg_y + 20
+            
+            SubElement(svg, 'rect', {
+                'x': str(label_x),
+                'y': str(label_y - 12),
+                'width': str(text_width),
+                'height': '16',
+                'fill': 'rgba(255, 255, 255, 0.9)',
+                'stroke': '#007bff',
+                'stroke-width': '0.5',
+                'rx': '2'
+            })
+            
+            # Coordinate text
+            SubElement(svg, 'text', {
+                'x': str(label_x + 4),
+                'y': str(label_y - 2),
+                'font-size': '8px',
+                'font-family': 'monospace',
+                'fill': '#007bff',
+                'font-weight': 'bold'
+            }).text = coord_text
+    
+    def _draw_multi_tract_boundary_coordinates(self, svg: Element, tracts: List, transform: dict) -> None:
+        """Draw coordinate labels for boundary points in multi-tract view"""
+        colors = ['#2E86AB', '#A23B72', '#F18F01', '#7B68EE', '#32CD32', '#FF6347']
+        
+        for tract_index, tract in enumerate(tracts):
+            if not tract.geometry or not tract.geometry.vertices:
+                continue
+            
+            color = colors[tract_index % len(colors)]
+            
+            for i, vertex in enumerate(tract.geometry.vertices):
+                svg_x, svg_y = self._transform_point(vertex.x, vertex.y, transform)
+                
+                # Skip POB as it's already labeled with larger markers
+                if i == 0:
+                    continue
+                
+                # Small circle marker for boundary point
+                SubElement(svg, 'circle', {
+                    'cx': str(svg_x),
+                    'cy': str(svg_y),
+                    'r': '2.5',
+                    'fill': color,
+                    'stroke': 'white',
+                    'stroke-width': '1',
+                    'class': f'boundary-point-{tract_index}'
+                })
+                
+                # Coordinate label (smaller for multi-tract to avoid clutter)
+                coord_text = f"({vertex.x:.0f},{vertex.y:.0f})"
+                text_width = len(coord_text) * 5 + 6
+                
+                # Position label to avoid overlap
+                label_x = svg_x + 6
+                label_y = svg_y - 6
+                
+                # Adjust if near edges
+                if label_x + text_width > self.width - 10:
+                    label_x = svg_x - text_width - 6
+                if label_y < 15:
+                    label_y = svg_y + 15
+                
+                SubElement(svg, 'rect', {
+                    'x': str(label_x),
+                    'y': str(label_y - 10),
+                    'width': str(text_width),
+                    'height': '12',
+                    'fill': 'rgba(255, 255, 255, 0.9)',
+                    'stroke': color,
+                    'stroke-width': '0.5',
+                    'rx': '1'
+                })
+                
+                # Coordinate text
+                SubElement(svg, 'text', {
+                    'x': str(label_x + 3),
+                    'y': str(label_y - 2),
+                    'font-size': '7px',
+                    'font-family': 'monospace',
+                    'fill': color,
+                    'font-weight': 'bold'
+                }).text = coord_text
+    
     def generate_svg(self, geometry: PolygonGeometry, calls: List[SurveyCall], 
                     title: str = "Survey Polygon") -> str:
         """
@@ -296,8 +776,9 @@ class SVGGenerator:
             'xmlns': 'http://www.w3.org/2000/svg'
         })
         
-        # Add styles
+        # Add styles and interactive features
         self._add_styles(svg)
+        self._add_interactive_controls(svg)
         
         # Add title
         title_elem = SubElement(svg, 'title')
@@ -312,6 +793,9 @@ class SVGGenerator:
         # Draw vertices
         self._draw_vertices(svg, geometry.vertices, transform)
         
+        # Draw actual survey calls (boundary lines/curves)
+        self._draw_survey_calls(svg, geometry.vertices, calls, transform)
+        
         # Draw measurements and labels
         self._draw_measurements(svg, geometry.vertices, calls, transform)
         
@@ -324,6 +808,12 @@ class SVGGenerator:
         
         if self.show_info_box:
             self._draw_info_box(svg, geometry, calls)
+        
+        # Draw POB information for single tract
+        self._draw_single_tract_pob(svg, geometry, transform)
+        
+        # Draw boundary point coordinates
+        self._draw_boundary_coordinates(svg, geometry, transform)
         
         # Convert to string
         rough_string = tostring(svg, 'unicode')
@@ -649,6 +1139,94 @@ class SVGGenerator:
             else:
                 title.text = f"Vertex {i}\n({vertex.x:.2f}, {vertex.y:.2f})\n{vertex.description or ''}"
     
+    def _draw_survey_calls(self, svg: Element, vertices: List[GeometryPoint], 
+                          calls: List[SurveyCall], transform: dict) -> None:
+        """Draw actual survey calls (lines and curves) that form property boundaries"""
+        if len(vertices) < 2:
+            return
+        
+        for i, call in enumerate(calls):
+            if i >= len(vertices) - 1:
+                break
+            
+            # Get start and end points for this survey call
+            start_vertex = vertices[i]
+            end_vertex = vertices[i + 1]
+            
+            start_x, start_y = self._transform_point(start_vertex.x, start_vertex.y, transform)
+            end_x, end_y = self._transform_point(end_vertex.x, end_vertex.y, transform)
+            
+            if call.type in ['curve', 'tie_curve']:
+                # Draw curve as an arc (approximation with path)
+                self._draw_curve_boundary(svg, start_x, start_y, end_x, end_y, call)
+            else:
+                # Draw straight line boundary
+                self._draw_line_boundary(svg, start_x, start_y, end_x, end_y, call)
+    
+    def _draw_line_boundary(self, svg: Element, start_x: float, start_y: float, 
+                           end_x: float, end_y: float, call: SurveyCall) -> None:
+        """Draw a straight line boundary"""
+        SubElement(svg, 'line', {
+            'x1': f'{start_x:.2f}',
+            'y1': f'{start_y:.2f}',
+            'x2': f'{end_x:.2f}',
+            'y2': f'{end_y:.2f}',
+            'class': 'boundary-line',
+            'stroke': '#2E86AB',
+            'stroke-width': '2',
+            'data-call-sequence': str(call.sequence),
+            'data-call-type': call.type
+        })
+    
+    def _draw_curve_boundary(self, svg: Element, start_x: float, start_y: float, 
+                           end_x: float, end_y: float, call: SurveyCall) -> None:
+        """Draw a curved boundary using SVG arc"""
+        if not call.radius or not call.chord_length:
+            # Fallback to straight line if curve data is incomplete
+            self._draw_line_boundary(svg, start_x, start_y, end_x, end_y, call)
+            return
+        
+        # Calculate arc parameters for SVG path
+        # For now, approximate with a quadratic curve
+        mid_x = (start_x + end_x) / 2
+        mid_y = (start_y + end_y) / 2
+        
+        # Offset the midpoint based on curve direction and radius
+        dx = end_x - start_x
+        dy = end_y - start_y
+        chord_length = math.sqrt(dx**2 + dy**2)
+        
+        if chord_length > 0:
+            # Calculate perpendicular offset for curve
+            perp_x = -dy / chord_length
+            perp_y = dx / chord_length
+            
+            # Approximate curve height from radius and chord
+            if call.radius > chord_length / 2:
+                curve_height = call.radius - math.sqrt(call.radius**2 - (chord_length/2)**2)
+                direction = 1 if call.curve_direction == "R" else -1
+                
+                control_x = mid_x + perp_x * curve_height * direction
+                control_y = mid_y + perp_y * curve_height * direction
+                
+                # Draw quadratic curve
+                path_data = f'M {start_x:.2f} {start_y:.2f} Q {control_x:.2f} {control_y:.2f} {end_x:.2f} {end_y:.2f}'
+                SubElement(svg, 'path', {
+                    'd': path_data,
+                    'fill': 'none',
+                    'class': 'boundary-curve',
+                    'stroke': '#A23B72',
+                    'stroke-width': '2',
+                    'data-call-sequence': str(call.sequence),
+                    'data-call-type': call.type
+                })
+            else:
+                # Invalid curve, draw as line
+                self._draw_line_boundary(svg, start_x, start_y, end_x, end_y, call)
+        else:
+            # Zero-length chord, draw as line
+            self._draw_line_boundary(svg, start_x, start_y, end_x, end_y, call)
+    
     def _draw_measurements(self, svg: Element, vertices: List[GeometryPoint], 
                          calls: List[SurveyCall], transform: dict) -> None:
         """Draw measurement labels and bearing annotations"""
@@ -666,15 +1244,8 @@ class SVGGenerator:
             start_x, start_y = self._transform_point(start_vertex.x, start_vertex.y, transform)
             end_x, end_y = self._transform_point(end_vertex.x, end_vertex.y, transform)
             
-            # Draw construction line (dashed)
-            line_class = 'curve' if call.type in ['curve', 'tie_curve'] else 'line'
-            SubElement(svg, 'line', {
-                'x1': str(start_x),
-                'y1': str(start_y),
-                'x2': str(end_x),
-                'y2': str(end_y),
-                'class': line_class
-            })
+            # Note: Actual boundary lines/curves are drawn by _draw_survey_calls method
+            # This method only handles measurement labels
             
             # Calculate label position (midpoint offset)
             mid_x = (start_x + end_x) / 2

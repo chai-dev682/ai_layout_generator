@@ -65,24 +65,53 @@ class GeometryCalculator:
         current_x, current_y = self.pob_x, self.pob_y
         
         for call in calls:
-            if call.type in ["line", "tie_line"]:
-                next_x, next_y = self._calculate_line_endpoint(
-                    current_x, current_y, call.azimuth_deg, call.distance
-                )
-                vertices.append(GeometryPoint(
-                    x=next_x, 
-                    y=next_y, 
-                    description=f"Line {call.sequence} endpoint"
-                ))
-                current_x, current_y = next_x, next_y
-                
-            elif call.type in ["curve", "tie_curve"]:
-                curve_points = self._calculate_curve_points(
-                    current_x, current_y, call
-                )
-                vertices.extend(curve_points)
-                if curve_points:
-                    current_x, current_y = curve_points[-1].x, curve_points[-1].y
+            try:
+                if call.type in ["line", "tie_line"]:
+                    # Check if we have required data before calculating
+                    if call.azimuth_deg is None or call.distance is None:
+                        print(f"Warning: Skipping call {call.sequence} - missing data - azimuth: {call.azimuth_deg}, distance: {call.distance}")
+                        print(f"Raw text: {call.raw_text}")
+                        # Skip this call completely - don't add unnecessary vertices
+                        continue
+                    
+                    next_x, next_y = self._calculate_line_endpoint(
+                        current_x, current_y, call.azimuth_deg, call.distance
+                    )
+                    vertices.append(GeometryPoint(
+                        x=next_x, 
+                        y=next_y, 
+                        description=f"Line {call.sequence} endpoint"
+                    ))
+                    current_x, current_y = next_x, next_y
+                    
+                elif call.type in ["curve", "tie_curve"]:
+                    # For polygon boundary, we only need the curve endpoint, not intermediate points
+                    curve_endpoint = self._calculate_curve_endpoint(
+                        current_x, current_y, call
+                    )
+                    if curve_endpoint:
+                        vertices.append(curve_endpoint)
+                        current_x, current_y = curve_endpoint.x, curve_endpoint.y
+                        
+            except Exception as e:
+                print(f"Error processing call {call.sequence}: {e}")
+                print(f"Call data - type: {call.type}, azimuth: {call.azimuth_deg}, distance: {call.distance}")
+                # Skip this call - don't add unnecessary vertices for errors
+                continue
+        
+        # Validate vertex count
+        expected_vertices = len([call for call in calls if call.azimuth_deg is not None and call.distance is not None]) + 1  # +1 for POB
+        actual_vertices = len(vertices)
+        
+        print(f"Vertex count validation:")
+        print(f"  Valid calls: {expected_vertices - 1}")
+        print(f"  Expected vertices (including POB): {expected_vertices}")
+        print(f"  Actual vertices: {actual_vertices}")
+        
+        if actual_vertices != expected_vertices:
+            print(f"  WARNING: Vertex count mismatch!")
+        else:
+            print(f"  ✓ Vertex count is correct")
         
         return vertices
     
@@ -100,6 +129,33 @@ class GeometryCalculator:
         dy = distance * math.cos(azimuth_rad)
         
         return start_x + dx, start_y + dy
+    
+    def _calculate_curve_endpoint(self, start_x: float, start_y: float, 
+                                call: SurveyCall) -> Optional[GeometryPoint]:
+        """Calculate only the endpoint of a curve for polygon boundary"""
+        if not call.radius or not call.chord_length:
+            # Fallback to straight line if curve data incomplete
+            if call.chord_bearing and call.chord_length:
+                from ..utils.bearing_parser import BearingParser
+                chord_azimuth = BearingParser().parse_bearing(call.chord_bearing)
+                if chord_azimuth is not None:
+                    end_x, end_y = self._calculate_line_endpoint(
+                        start_x, start_y, chord_azimuth, call.chord_length
+                    )
+                    return GeometryPoint(x=end_x, y=end_y, description=f"Curve {call.sequence} endpoint (as line)")
+            return None
+        
+        # Use chord to calculate endpoint directly
+        if call.chord_bearing and call.chord_length:
+            from ..utils.bearing_parser import BearingParser
+            chord_azimuth = BearingParser().parse_bearing(call.chord_bearing)
+            if chord_azimuth is not None:
+                end_x, end_y = self._calculate_line_endpoint(
+                    start_x, start_y, chord_azimuth, call.chord_length
+                )
+                return GeometryPoint(x=end_x, y=end_y, description=f"Curve {call.sequence} endpoint")
+        
+        return None
     
     def _calculate_curve_points(self, start_x: float, start_y: float, 
                               call: SurveyCall, num_segments: int = 16) -> List[GeometryPoint]:
