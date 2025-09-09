@@ -23,7 +23,7 @@ class AppConfig:
     
     # OpenAI settings
     SUPPORTED_MODELS: List[str] = None
-    DEFAULT_MODEL: str = "gpt-4o"
+    DEFAULT_MODEL: str = "gpt-5"
     DEFAULT_TEMPERATURE: float = 0.1
     MAX_TOKENS: int = 4000
     
@@ -50,7 +50,16 @@ class AppConfig:
     def __post_init__(self):
         """Initialize default values that depend on other settings"""
         if self.SUPPORTED_MODELS is None:
-            self.SUPPORTED_MODELS = ["gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo"]
+            self.SUPPORTED_MODELS = [
+                # Standard GPT models
+                "gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-4", "gpt-3.5-turbo",
+                # New GPT models
+                "gpt-4.1", "gpt-4.1-mini", "gpt-5",
+                # O1-series reasoning models
+                "o1-preview", "o1-mini",
+                # New O-series reasoning models
+                "o3", "o3-pro", "o4-mini"
+            ]
         
         if self.SUPPORTED_FILE_TYPES is None:
             self.SUPPORTED_FILE_TYPES = ["pdf", "txt", "doc", "docx"]

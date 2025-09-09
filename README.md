@@ -32,6 +32,8 @@ A comprehensive system for parsing legal deed descriptions and visualizing prope
 
 ## Installation
 
+### Quick Start (Cross-Platform)
+
 1. **Clone the repository:**
    ```bash
    git clone <repository-url>
@@ -43,16 +45,56 @@ A comprehensive system for parsing legal deed descriptions and visualizing prope
    pip install -r requirements.txt
    ```
 
-3. **Set up environment:**
+3. **Install system dependencies:**
+   
+   **Windows:**
+   - Install Tesseract OCR from: https://github.com/UB-Mannheim/tesseract/wiki
+   
+   **Linux/Ubuntu:**
+   ```bash
+   sudo apt-get update
+   sudo apt-get install tesseract-ocr tesseract-ocr-eng libgl1-mesa-glx
+   ```
+
+4. **Set up environment:**
    ```bash
    cp env.example .env
    # Edit .env with your OpenAI API key
    ```
 
-4. **Run the application:**
+5. **Test platform compatibility:**
+   ```bash
+   python test_platform.py
+   ```
+
+6. **Run the application:**
    ```bash
    streamlit run app.py
    ```
+
+## 🚀 Deployment
+
+### Streamlit Cloud
+
+This application is optimized for deployment on Streamlit Cloud with automatic cross-platform compatibility:
+
+1. **Required Files:**
+   - ✅ `requirements.txt` - Python dependencies (includes opencv-python-headless)
+   - ✅ `packages.txt` - System dependencies for Linux (Tesseract OCR)
+   - ✅ `.streamlit/secrets.toml` - API keys and configuration
+
+2. **Deploy to Streamlit Cloud:**
+   - Push your code to GitHub
+   - Connect repository to Streamlit Cloud
+   - Set up secrets in the dashboard
+   - Deploy automatically!
+
+3. **Platform Detection:**
+   - Automatically detects Windows vs Linux environment
+   - Configures Tesseract OCR paths appropriately
+   - Uses headless OpenCV for server environments
+
+For detailed deployment instructions, see [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md).
 
 ## Usage
 
