@@ -1,5 +1,6 @@
 """
-Main Streamlit application for the Deed Parser system.
+SmartLandPlanner - AI-Powered Subdivision Layout System
+Main Streamlit application for comprehensive subdivision planning.
 """
 import streamlit as st
 import pandas as pd
@@ -142,14 +143,14 @@ def generate_summary_report(geometry, calls: List[SurveyCall]) -> str:
 def main():
     """Main Streamlit application"""
     st.set_page_config(
-        page_title="Deed Parser System",
-        page_icon="🗺️",
+        page_title="SmartLandPlanner - AI Subdivision Planning",
+        page_icon="🏘️",
         layout="wide",
         initial_sidebar_state="expanded"
     )
     
-    st.title("🗺️ Deed Parser System")
-    st.markdown("Extract survey calls from legal descriptions and visualize property boundaries")
+    st.title("🏘️ SmartLandPlanner")
+    st.markdown("**AI-Powered Subdivision Planning System** - Transform property boundaries into comprehensive subdivision layouts")
     
     # Initialize session state
     initialize_session_state()
@@ -157,23 +158,23 @@ def main():
     # Sidebar configuration
     setup_sidebar()
     
-    # Main content tabs - Updated to include Site Planning
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(["📄 PDF Input & Processing", "📝 Text Input & Parsing", "📊 Review & Edit", "🗺️ Visualization", "🏘️ Site Planning"])
+    # Main content tabs - Complete subdivision planning workflow
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["📄 Property Boundary Extraction", "📝 Deed Text Processing", "📊 Review & Edit Data", "🗺️ Boundary Visualization", "🏘️ AI Site Planning"])
     
     with tab1:
-        pdf_input_tab()
+        pdf_input_tab()  # Property Boundary Extraction
     
     with tab2:
-        text_input_tab()
+        text_input_tab()  # Deed Text Processing
     
     with tab3:
-        review_edit_tab()
+        review_edit_tab()  # Review & Edit Data
     
     with tab4:
-        visualization_tab()
+        visualization_tab()  # Boundary Visualization
     
     with tab5:
-        site_planning_tab()
+        site_planning_tab()  # AI Site Planning
 
 
 def initialize_session_state():
@@ -250,7 +251,7 @@ def initialize_session_state():
 
 def setup_sidebar():
     """Setup sidebar with configuration options"""
-    st.sidebar.header("⚙️ Configuration")
+    st.sidebar.header("⚙️ SmartLandPlanner Configuration")
     
     # OpenAI Settings
     st.sidebar.subheader("OpenAI Settings")
@@ -274,7 +275,7 @@ def setup_sidebar():
     )
     
     # Gemini API Key for Site Planning
-    st.sidebar.subheader("Site Planning AI")
+    st.sidebar.subheader("AI Site Planning")
     gemini_key = st.sidebar.text_input(
         "Google Gemini API Key",
         type="password",
@@ -471,8 +472,9 @@ def setup_sidebar():
 
 
 def pdf_input_tab():
-    """PDF input and processing tab with 6-step workflow"""
-    st.header("📄 PDF Site Survey Processing")
+    """Property boundary extraction from PDFs and images"""
+    st.header("📄 Property Boundary Extraction")
+    st.markdown("**Extract property boundaries from PDFs and site plan images** using AI-powered analysis")
     
     # Progress indicator
     steps = ["Upload", "Extract", "Boundary", "Format", "Review", "Visualize"]
@@ -949,8 +951,9 @@ def cad_formatting_step():
 
 
 def text_input_tab():
-    """Text input and parsing tab"""
-    st.header("📝 Deed Text Input")
+    """Deed text processing and parsing"""
+    st.header("📝 Deed Text Processing")
+    st.markdown("**Parse legal deed descriptions** to extract survey calls and property boundaries")
     
     # File upload option
     uploaded_file = st.file_uploader(
@@ -1118,8 +1121,9 @@ def text_input_tab():
 
 
 def review_edit_tab():
-    """Review and edit calls tab with editable table"""
-    st.header("📊 Review & Edit Survey Calls")
+    """Review and edit survey data"""
+    st.header("📊 Review & Edit Data")
+    st.markdown("**Review and refine extracted survey data** before proceeding to visualization and site planning")
     
     if not st.session_state.tracts and not st.session_state.calls:
         st.info("💡 Parse deed text in the first tab to see editable calls here")
@@ -1294,7 +1298,8 @@ def review_edit_tab():
 
 def visualization_tab():
     """Visualization tab with SVG display"""
-    st.header("🗺️ Property Boundary Visualization")
+    st.header("🗺️ Boundary Visualization")
+    st.markdown("**Visualize property boundaries** and prepare data for subdivision planning")
     
     if not st.session_state.tracts and not st.session_state.geometry:
         st.info("💡 Parse and review deed calls to see visualization here")
@@ -1718,7 +1723,7 @@ def visualization_tab():
         
         # New row for site planning export
         st.markdown("---")
-        st.subheader("🏘️ Site Planning Export")
+        st.subheader("🏘️ Subdivision Planning Export")
         
         col1, col2, col3 = st.columns([1, 1, 2])
         with col1:
@@ -1746,11 +1751,11 @@ def visualization_tab():
         
         with col2:
             # Quick link to site planning tab
-            if st.button("🏘️ Go to Site Planning", help="Switch to Site Planning tab to continue"):
-                st.info("💡 Switch to the 'Site Planning' tab to generate road networks and analyze subdivision plans")
+            if st.button("🏘️ Go to AI Site Planning", help="Switch to AI Site Planning tab to continue"):
+                st.info("💡 Switch to the 'AI Site Planning' tab to generate road networks and analyze subdivision plans")
         
         with col3:
-            st.info("💡 **Site Planning Workflow:** Export boundary PNG → Switch to Site Planning tab → Generate roads → Finalize plan → Analyze lots")
+            st.info("💡 **Subdivision Planning Workflow:** Export boundary PNG → Switch to AI Site Planning tab → Generate roads → Configure lots → Analyze development")
         
         # Quick preview section
         with st.expander("🔍 Quick Analysis", expanded=False):
@@ -2913,16 +2918,16 @@ def analyze_site_plan_comprehensive(final_image_path, pixel_per_foot, progress_c
 
 
 def site_planning_tab():
-    """Site Planning tab with 4-step workflow"""
-    st.header("🏘️ AI-Powered Site Planning")
-    st.markdown("Transform boundary polygons into comprehensive subdivision plans")
+    """AI Site Planning tab with 4-step workflow"""
+    st.header("🏘️ AI-Powered Subdivision Planning")
+    st.markdown("**Transform property boundaries into comprehensive subdivision layouts** with intelligent road networks and lot configurations")
     
     # Workflow steps
     workflow_steps = [
-        {"name": "Input Preparation", "icon": "📤"},
-        {"name": "Road Network Generation", "icon": "🛣️"},
-        {"name": "Site Plan Finalization", "icon": "✅"},
-        {"name": "Site Analysis", "icon": "📊"}
+        {"name": "Boundary Input", "icon": "📤"},
+        {"name": "AI Road Generation", "icon": "🛣️"},
+        {"name": "Lot Configuration", "icon": "✅"},
+        {"name": "Development Analysis", "icon": "📊"}
     ]
     
     # Progress indicator

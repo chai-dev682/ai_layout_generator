@@ -1,34 +1,51 @@
-# Deed Parser System
+# SmartLandPlanner
 
-A comprehensive system for parsing legal deed descriptions and visualizing property boundaries using AI-powered text extraction and geometric calculations.
+An AI-powered subdivision layout system that transforms property boundaries into comprehensive subdivision plans. From deed parsing to road network generation, SmartLandPlanner creates optimized land development layouts using advanced AI and geometric calculations.
 
 ## Features
 
+### Core Subdivision Planning
+- **AI-Powered Site Analysis**: Uses Google Gemini AI to analyze site plans and extract boundaries
+- **Intelligent Road Network Generation**: Automatically creates optimized road layouts for subdivisions
+- **Lot Configuration**: Generates buildable lots with automatic setback calculations
+- **Site Plan Visualization**: Interactive maps showing roads, lots, and infrastructure
+
+### Deed Processing & Boundary Extraction
 - **AI-Powered Parsing**: Uses OpenAI GPT models to extract survey calls from deed text
 - **Interactive Editing**: Review and correct parsed data with an editable table interface  
 - **Geometry Calculation**: Converts bearings/distances to coordinates and calculates polygon geometry
 - **SVG Visualization**: Generate scalable vector graphics of property boundaries
-- **Multiple Export Formats**: Export as SVG, CSV, JSON, and more
+
+### Export & Analysis
+- **Multiple Export Formats**: Export as SVG, CSV, JSON, PNG, and more
+- **Cost Analysis**: Calculate development costs and lot valuations
+- **Quality Metrics**: Analyze lot sizes, road efficiency, and development feasibility
 - **Flexible Configuration**: Support for different units, bearing conventions, and coordinate systems
 
 ## Architecture
 
 ### Frontend
-- **Streamlit** web application with tabbed interface
-- Editable data tables using `st.data_editor`
-- Real-time SVG preview and export options
-- File upload support for PDFs and text files
+- **Streamlit** web application with comprehensive subdivision planning interface
+- **5-Tab Workflow**: PDF Processing → Text Parsing → Review & Edit → Visualization → Site Planning
+- Interactive data tables and real-time visualization
+- File upload support for PDFs, images, and text files
+
+### AI Services
+- **OpenAI Integration** for deed text parsing with structured outputs
+- **Google Gemini AI** for site plan analysis and boundary extraction
+- **Computer Vision** for image processing and lot detection
+- **Intelligent Algorithms** for road network optimization
 
 ### Backend Services
-- **OpenAI Integration** with structured outputs and function calling
 - **Geometry Calculator** using Shapely for coordinate transformations
-- **SVG Generator** for creating detailed boundary visualizations
+- **SVG Generator** for creating detailed boundary and subdivision visualizations
+- **Cost Calculator** for development cost analysis
 - **Bearing Parser** supporting multiple format conventions
 
 ### Data Models
 - Pydantic models for type safety and validation
-- Canonical JSON schema for survey calls
-- Project settings and quality thresholds
+- Canonical JSON schema for survey calls and subdivision data
+- Project settings, quality thresholds, and development parameters
 
 ## Installation
 
@@ -37,7 +54,7 @@ A comprehensive system for parsing legal deed descriptions and visualizing prope
 1. **Clone the repository:**
    ```bash
    git clone <repository-url>
-   cd deed-parser
+   cd smart-land-planner
    ```
 
 2. **Install dependencies:**
@@ -59,7 +76,7 @@ A comprehensive system for parsing legal deed descriptions and visualizing prope
 4. **Set up environment:**
    ```bash
    cp env.example .env
-   # Edit .env with your OpenAI API key
+   # Edit .env with your OpenAI API key and Google Gemini API key
    ```
 
 5. **Test platform compatibility:**
@@ -98,27 +115,42 @@ For detailed deployment instructions, see [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE
 
 ## Usage
 
-### 1. Configuration
-- Enter your OpenAI API key in the sidebar
-- Select the desired OpenAI model (gpt-4o recommended)
-- Set project units (feet/meters) and bearing convention
-- Configure Point of Beginning coordinates
+### Complete Subdivision Planning Workflow
 
-### 2. Text Input & Parsing
+#### 1. Configuration
+- Enter your **OpenAI API key** for deed text parsing
+- Enter your **Google Gemini API key** for site plan analysis
+- Select AI models and configure project settings
+- Set project units (feet/meters) and bearing convention
+
+#### 2. Property Boundary Extraction
+**Option A: Deed Text Processing**
 - Paste deed text or upload a PDF file
 - Click "Parse Deed" to extract survey calls using AI
-- Review parsing confidence and any warnings
+- Review and edit extracted boundary data
 
-### 3. Review & Edit
-- Use the interactive table to review extracted calls
+**Option B: Site Plan Image Analysis**
+- Upload a site plan image (PNG, JPG)
+- Use AI to automatically extract property boundaries
+- Review and refine boundary polygon
+
+#### 3. Review & Edit
+- Use interactive tables to review boundary data
 - Edit bearings, distances, and other parameters
-- Add or remove calls as needed
+- Add or remove boundary calls as needed
 - Recalculate geometry after changes
 
-### 4. Visualization
+#### 4. Visualization & Export
 - View the generated property boundary polygon
 - See closure statistics and area calculations
+- Export boundary as PNG for site planning
 - Export as SVG, CSV, or JSON formats
+
+#### 5. AI-Powered Site Planning
+- **Road Network Generation**: AI creates optimized road layouts
+- **Lot Configuration**: Automatic lot creation with setbacks
+- **Site Analysis**: Analyze lot sizes, road efficiency, and costs
+- **Final Plan Export**: Generate comprehensive subdivision plans
 
 ## Supported Formats
 
@@ -162,14 +194,15 @@ For detailed deployment instructions, see [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE
 
 ### Project Structure
 ```
-deed-parser/
-├── app.py                 # Main Streamlit application
+smart-land-planner/
+├── app.py                 # Main Streamlit application with 5-tab workflow
 ├── src/
-│   ├── models/           # Pydantic data models
-│   ├── parsers/          # OpenAI integration
-│   ├── geometry/         # Coordinate calculations  
-│   ├── visualization/    # SVG generation
-│   └── utils/           # Utilities (bearing parser, etc.)
+│   ├── models/           # Pydantic data models for deeds and subdivisions
+│   ├── parsers/          # OpenAI and Gemini AI integration
+│   ├── geometry/         # Coordinate calculations and transformations
+│   ├── visualization/    # SVG generation and site plan visualization
+│   ├── components/       # UI components and data tables
+│   └── utils/           # Utilities (bearing parser, cost calculator, etc.)
 ├── tests/               # Unit tests
 └── requirements.txt     # Dependencies
 ```
@@ -180,10 +213,11 @@ python -m pytest tests/
 ```
 
 ### Adding New Features
-1. Update data models in `src/models/`
-2. Extend parsers or geometry calculators
-3. Add new visualization options
-4. Update Streamlit UI components
+1. Update data models in `src/models/` for new subdivision features
+2. Extend AI parsers (OpenAI/Gemini) for enhanced analysis
+3. Add new visualization options for site plans and lot layouts
+4. Update Streamlit UI components and workflow tabs
+5. Enhance cost calculation and development analysis tools
 
 ## Configuration Options
 
@@ -193,10 +227,10 @@ python -m pytest tests/
 - Coordinate Reference System (CRS)
 - Quality thresholds and tolerances
 
-### OpenAI Settings
-- Model selection (gpt-4o, gpt-4-turbo, gpt-3.5-turbo)
-- API key management
-- Parsing confidence thresholds
+### AI Settings
+- **OpenAI**: Model selection (gpt-4o, gpt-4-turbo, gpt-3.5-turbo)
+- **Google Gemini**: API key management for site plan analysis
+- Parsing confidence thresholds and quality settings
 
 ## Troubleshooting
 
@@ -204,7 +238,9 @@ python -m pytest tests/
 1. **Low parsing confidence**: Review and manually edit calls in the table
 2. **Closure errors**: Check bearing/distance accuracy and units
 3. **Missing curve data**: Verify radius, arc length, and chord information
-4. **API errors**: Confirm OpenAI API key and model availability
+4. **API errors**: Confirm OpenAI and Gemini API keys and model availability
+5. **Site plan analysis issues**: Ensure clear site plan images with visible boundaries
+6. **Road generation problems**: Check boundary polygon quality and site constraints
 
 ### Error Handling
 - Graceful degradation for incomplete data
