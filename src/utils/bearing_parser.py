@@ -10,6 +10,35 @@ from typing import Optional, Tuple, Union
 class BearingParser:
     """Parse various bearing formats and convert to azimuth degrees"""
     
+    # General directional terms and their corresponding bearings
+    DIRECTIONAL_TERMS = {
+        'north': 'N 0°0\'0" E',
+        'northerly': 'N 0°0\'0" E',
+        'northeast': 'N 45°0\'0" E',
+        'northeasterly': 'N 45°0\'0" E',
+        'east': 'N 90°0\'0" E',
+        'easterly': 'N 90°0\'0" E',
+        'southeast': 'S 45°0\'0" E',
+        'southeasterly': 'S 45°0\'0" E',
+        'south': 'S 0°0\'0" E',
+        'southerly': 'S 0°0\'0" E',
+        'southwest': 'S 45°0\'0" W',
+        'southwesterly': 'S 45°0\'0" W',
+        'west': 'N 90°0\'0" W',
+        'westerly': 'N 90°0\'0" W',
+        'northwest': 'N 45°0\'0" W',
+        'northwesterly': 'N 45°0\'0" W',
+        # Also add abbreviated forms
+        'n': 'N 0°0\'0" E',
+        'ne': 'N 45°0\'0" E',
+        'e': 'N 90°0\'0" E',
+        'se': 'S 45°0\'0" E',
+        's': 'S 0°0\'0" E',
+        'sw': 'S 45°0\'0" W',
+        'w': 'N 90°0\'0" W',
+        'nw': 'N 45°0\'0" W',
+    }
+    
     # Regex patterns for different bearing formats
     PATTERNS = {
         'quadrant_dms': re.compile(
@@ -55,7 +84,12 @@ class BearingParser:
             
         bearing_str = bearing_str.strip()
         
-        # Try quadrant formats first (most common in deeds)
+        # First check for general directional terms
+        azimuth = cls._parse_directional_term(bearing_str)
+        if azimuth is not None:
+            return azimuth
+        
+        # Try quadrant formats (most common in deeds)
         azimuth = cls._parse_quadrant_bearing(bearing_str)
         if azimuth is not None:
             return azimuth
@@ -65,6 +99,25 @@ class BearingParser:
         if azimuth is not None:
             return azimuth
             
+        return None
+    
+    @classmethod
+    def _parse_directional_term(cls, bearing_str: str) -> Optional[float]:
+        """Parse general directional terms like NORTHWESTERLY, EASTERLY, etc."""
+        # Extract just the directional word from phrases like "RUNNING THENCE NORTHWESTERLY"
+        # Look for directional terms in the string
+        bearing_str_lower = bearing_str.lower()
+        
+        for term, bearing in cls.DIRECTIONAL_TERMS.items():
+            # Check if the term appears as a word (not part of another word)
+            # Use word boundaries or check for the term followed by space or end of string
+            if term in bearing_str_lower:
+                # Make sure it's a complete word match
+                pattern = r'\b' + re.escape(term) + r'(?:ly)?\b'
+                if re.search(pattern, bearing_str_lower):
+                    # Parse the standard bearing format
+                    return cls._parse_quadrant_bearing(bearing)
+        
         return None
     
     @classmethod

@@ -2135,6 +2135,7 @@ def generate_road_network_ai(boundary_image, road_type):
     with st.spinner(f"🔄 Generating {road_type} road network..."):
         prompt = (
             "Provided image is extracted site boundary polygon (red lines)",
+            "I am going to prepare in the area within the red lines (site boundary)",
             f"Generate {road_type}-type road network INSIDE of site boundary polygon ONLY while considering lotting",
         )
         
@@ -2293,7 +2294,7 @@ def analyze_site_plan_comprehensive(final_image_path, pixel_per_foot, progress_c
             
             if progress_container:
                 with progress_container:
-                    st.image(highlighted_pil, caption="Preprocess: Edge Highlighting - Red Borders Added", use_container_width=True)
+                    st.image(highlighted_pil, caption="Preprocess: Edge Highlighting - Red Borders Added", use_column_width=True)
                     st.success("✅ Edges highlighted successfully!")
         else:
             # Fallback to original image if highlighting fails
@@ -2369,7 +2370,7 @@ def analyze_site_plan_comprehensive(final_image_path, pixel_per_foot, progress_c
         
         if progress_container:
             with progress_container:
-                st.image(binary_viz, caption="Step 1: Binary Conversion - Red Line Detection", use_container_width=True)
+                st.image(binary_viz, caption="Step 1: Binary Conversion - Red Line Detection", use_column_width=True)
         
         # Step 2: Detect lots and roads
         if progress_container:
@@ -2670,7 +2671,7 @@ def analyze_site_plan_comprehensive(final_image_path, pixel_per_foot, progress_c
         
         if progress_container:
             with progress_container:
-                st.image(lot_viz, caption=f"Step 2: Lot Analysis - {len(lot_data)} Lots Detected", use_container_width=True)
+                st.image(lot_viz, caption=f"Step 2: Lot Analysis - {len(lot_data)} Lots Detected", use_column_width=True)
         
         # Step 3: Road network analysis (comprehensive method from test_analyse.py)
         if progress_container:
@@ -2767,7 +2768,7 @@ def analyze_site_plan_comprehensive(final_image_path, pixel_per_foot, progress_c
             with progress_container:
                 # Show the matplotlib road analysis instead
                 if os.path.exists(road_viz_path):
-                    st.image(road_viz_path, caption="Step 3: Road Network Analysis", use_container_width=True)
+                    st.image(road_viz_path, caption="Step 3: Road Network Analysis", use_column_width=True)
                 else:
                     st.info("Road network analysis visualization generated")
         
@@ -2882,7 +2883,7 @@ def analyze_site_plan_comprehensive(final_image_path, pixel_per_foot, progress_c
         
         if progress_container:
             with progress_container:
-                st.image(final_viz, caption="Step 4: Final Annotated Site Plan", use_container_width=True)
+                st.image(final_viz, caption="Step 4: Final Annotated Site Plan", use_column_width=True)
                 st.success("✅ Site plan analysis completed!")
         
         # All metrics already calculated above - using existing variables
@@ -2998,7 +2999,7 @@ def site_planning_input_step():
                     st.success(f"✅ Boundary exported! Scale: {pixel_per_foot:.2f} pixels/foot")
                     
                     # Show the exported image
-                    st.image(st.session_state.site_boundary_image, caption="Exported Boundary Polygon (Red Lines)", use_container_width =True)
+                    st.image(st.session_state.site_boundary_image, caption="Exported Boundary Polygon (Red Lines)", use_column_width=True)
                     
                     # Proceed to next step
                     st.session_state.site_planning_step = 1
@@ -3018,7 +3019,7 @@ def site_planning_input_step():
         if uploaded_file is not None:
             uploaded_image = Image.open(uploaded_file)
             st.session_state.uploaded_site_image = uploaded_image
-            st.image(uploaded_image, caption="Uploaded Site Image", use_container_width =True)
+            st.image(uploaded_image, caption="Uploaded Site Image", use_column_width=True)
             
             # Manual pixel/foot input
             pixel_per_foot = st.number_input(
@@ -3037,7 +3038,7 @@ def site_planning_input_step():
             # Show existing boundary if available
             if st.session_state.site_boundary_image:
                 st.success("✅ Site boundary already extracted!")
-                st.image(st.session_state.site_boundary_image, caption="Extracted Site Boundary", use_container_width =True)
+                st.image(st.session_state.site_boundary_image, caption="Extracted Site Boundary", use_column_width=True)
                 
                 col1, col2, col3 = st.columns(3)
                 with col1:
@@ -3099,7 +3100,7 @@ def site_planning_road_generation_step():
     # Show existing road network if available
     if st.session_state.road_network_image:
         st.success("✅ Road network already generated!")
-        st.image(st.session_state.road_network_image, caption=f"Generated {road_type.capitalize()} Road Network", use_container_width =True)
+        st.image(st.session_state.road_network_image, caption=f"Generated {road_type.capitalize()} Road Network", use_column_width=True)
         
         # Review and action buttons
         st.markdown("### Review Results")
@@ -3174,7 +3175,7 @@ def site_planning_finalization_step():
     # Show existing final plan if available
     if st.session_state.final_site_plan:
         st.success("✅ Site plan already finalized!")
-        st.image(st.session_state.final_site_plan, caption="Finalized Site Plan with Lots", use_container_width =True)
+        st.image(st.session_state.final_site_plan, caption="Finalized Site Plan with Lots", use_column_width=True)
         
         # Review and action buttons
         st.markdown("### Review Results")

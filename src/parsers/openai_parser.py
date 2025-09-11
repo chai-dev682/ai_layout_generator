@@ -277,6 +277,7 @@ INSTRUCTIONS:
    - ALL boundary calls in sequence order
 3. Preserve the exact raw text for each tract and call
 4. Parse bearings into both text format and azimuth degrees (0-360)
+   - Convert general directions (NORTHWESTERLY, EASTERLY, etc.) to specific bearings
 5. Extract distances with units
 6. Identify curves vs. lines based on keywords
 7. Set confidence based on clarity
@@ -403,6 +404,16 @@ BEARING CALCULATIONS:
 - N θ° E: ΔX = +L·sin(θ), ΔY = +L·cos(θ)
 - S θ° W: ΔX = -L·sin(θ), ΔY = -L·cos(θ)
 - S θ° E: ΔX = +L·sin(θ), ΔY = -L·cos(θ)
+
+GENERAL DIRECTIONS (use these when only directional words are given):
+- NORTHERLY = N 0° E
+- NORTHEASTERLY = N 45° E
+- EASTERLY = N 90° E
+- SOUTHEASTERLY = S 45° E
+- SOUTHERLY = S 0° E
+- SOUTHWESTERLY = S 45° W
+- WESTERLY = N 90° W
+- NORTHWESTERLY = N 45° W
 
 Return calculated POB coordinates (X, Y) for each tract."""
     
@@ -665,6 +676,16 @@ BEARING CALCULATIONS:
 - S θ° W: ΔX = -L·sin(θ), ΔY = -L·cos(θ)
 - S θ° E: ΔX = +L·sin(θ), ΔY = -L·cos(θ)
 
+GENERAL DIRECTIONS (use these when only directional words are given):
+- NORTHERLY = N 0° E
+- NORTHEASTERLY = N 45° E
+- EASTERLY = N 90° E
+- SOUTHEASTERLY = S 45° E
+- SOUTHERLY = S 0° E
+- SOUTHWESTERLY = S 45° W
+- WESTERLY = N 90° W
+- NORTHWESTERLY = N 45° W
+
 TRACT RELATIONSHIP ANALYSIS:
 - Identify if there is a "Total Tract" that encompasses all individual tracts
 - If Total Tract exists, use it as the primary reference for coordinate consistency
@@ -808,6 +829,18 @@ CURVE INDICATORS:
 BEARING FORMATS:
 - Quadrant: N 45°30'15" E, S 22°10' W, N45-30-15E
 - Azimuth: 123°45'30", 123.75°
+- General directions: Convert these to specific bearings:
+  * NORTHERLY → N 0°0'0" E
+  * NORTHEASTERLY → N 45°0'0" E  
+  * EASTERLY → N 90°0'0" E
+  * SOUTHEASTERLY → S 45°0'0" E
+  * SOUTHERLY → S 0°0'0" E
+  * SOUTHWESTERLY → S 45°0'0" W
+  * WESTERLY → N 90°0'0" W
+  * NORTHWESTERLY → N 45°0'0" W
+
+IMPORTANT: When you encounter general directional terms like "NORTHWESTERLY ALONG THE RIGHT OF WAY", 
+convert them to specific bearings (e.g., "N 45°0'0" W") for the bearing field.
 
 Please analyze the deed and return your response in JSON format with the following structure:
 {{
@@ -1003,6 +1036,18 @@ CURVE INDICATORS:
 BEARING FORMATS:
 - Quadrant: N 45°30'15" E, S 22°10' W, N45-30-15E
 - Azimuth: 123°45'30", 123.75°
+- General directions: Convert these to specific bearings:
+  * NORTHERLY → N 0°0'0" E
+  * NORTHEASTERLY → N 45°0'0" E  
+  * EASTERLY → N 90°0'0" E
+  * SOUTHEASTERLY → S 45°0'0" E
+  * SOUTHERLY → S 0°0'0" E
+  * SOUTHWESTERLY → S 45°0'0" W
+  * WESTERLY → N 90°0'0" W
+  * NORTHWESTERLY → N 45°0'0" W
+
+IMPORTANT: When you encounter general directional terms like "NORTHWESTERLY ALONG THE RIGHT OF WAY", 
+convert them to specific bearings (e.g., "N 45°0'0" W") for the bearing field.
 
 Return structured JSON with all tracts and their boundary call sequences."""
     

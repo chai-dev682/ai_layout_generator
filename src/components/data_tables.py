@@ -65,7 +65,6 @@ def display_enhanced_calls_table(calls: List[SurveyCall], title: str = "📋 Sur
     # Display with custom styling
     st.dataframe(
         df,
-        use_container_width=True,
         hide_index=True,
         column_config={
             "#": st.column_config.NumberColumn("#", width="small"),
@@ -195,7 +194,7 @@ def display_vertices_table(geometry: PolygonGeometry, show_all: bool = False):
     
     # Display table
     df = pd.DataFrame(vertices_data)
-    st.dataframe(df, use_container_width=True, hide_index=True)
+    st.dataframe(df, hide_index=True)
     
     # Show all vertices toggle
     if not show_all and len(vertices) > 6:
@@ -227,7 +226,7 @@ def display_tract_comparison(tracts: List):
             })
     
     df = pd.DataFrame(comparison_data)
-    st.dataframe(df, use_container_width=True, hide_index=True)
+    st.dataframe(df, hide_index=True)
 
 
 # Import math for distance calculations

@@ -802,7 +802,7 @@ with col2:
         
         st.image(st.session_state.current_display_image, 
                 caption=caption, 
-                use_container_width =True)
+                use_container_width=True)
     else:
         st.info("📷 Please upload a site survey image to begin")
     st.markdown("</div>", unsafe_allow_html=True)
